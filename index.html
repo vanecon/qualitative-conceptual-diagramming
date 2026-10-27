@@ -321,13 +321,12 @@
     <div class="consent-scroll">
     <div class="consent-body">
 
-      <h3>You'll need to be signed in to Claude to use this tool.</h3>
+      <h3>Information you enter into these tools (e.g., your responses, conversations, and the figures produced) may be saved. What you enter is processed by Anthropic's Claude.</h3>
       <p>If a PDF you attach won't load, try a different browser.</p>
 
       <h3>Where your words go</h3>
       <ul>
         <li>Whatever you send Thea or Drew is passed to Claude, Anthropic's AI, to generate a reply — that's the whole mechanism behind both personas.</li>
-        <li>This app doesn't keep a copy anywhere. Your conversation lives in this browser tab only; close it or hit refresh and it's gone for good.</li>
         <li>Once your message reaches Anthropic's side, it's covered by Anthropic's own privacy policy and terms, not this page.</li>
         <li>Before pasting in an excerpt, strip out anything that could identify a participant, plus anything confidential or proprietary.</li>
       </ul>
@@ -1346,8 +1345,9 @@ function buildExportSVG(shapes, arrows, includeLegend){
 // A published page can't hand the viewer a file via a plain <a download>
 // click or a script-started save -- that's inert once actually published
 // (it only ever worked in the chat's own artifact preview). Saving a file
-// here is a runtime capability instead; resolved once at load, same
-// pattern as sampleFn above.
+// here is a runtime capability instead, resolved once at load. Outside a
+// claude.ai artifact it is absent, and downloadFile falls back to an ordinary
+// browser download.
 var downloadsFn = null;
 (async function initDownloads(){
   try{
@@ -1882,10 +1882,9 @@ function tryParseInvokeXml(text){
 // Tolerant JSON extraction: try the whole (fence-stripped) string first;
 // if Drew added a sentence or two before the JSON despite being told not
 // to, fall back to the first '{' or '[' through the matching last brace/
-// bracket and try parsing just that span. This mirrors exactly how the
-// platform's own sample.json() reads a reply (whole text, else one
-// fenced block, else first-to-last brace), so a stray lead-in sentence
-// doesn't sink the entire response and silently draw nothing.
+// bracket and try parsing just that span (whole text, else one fenced
+// block, else first-to-last brace), so a stray lead-in sentence doesn't
+// sink the entire response and silently draw nothing.
 function tryParseJsonLoose(s){
   try{ return JSON.parse(s); } catch(e){}
   var firstBrace = s.indexOf('{'), firstBracket = s.indexOf('[');
@@ -1984,10 +1983,26 @@ the researcher pushes back, hold your position unless they've given you a
 genuinely new piece of information — a detail about the data, the context,
 or their argument that changes the picture. "I'd rather keep it this way"
 is not new information. A fact you didn't have before is. Don't soften a
-firm call into a question just to keep things comfortable.
+firm call into a question just to keep things comfortable. Holding a
+position means saying it once, clearly — not saying it again every turn
+until they give in.
 
 You can be wrong. When you are, say so plainly and move on — no extended
 apology, no self-flagellation.
+
+## Whose call it is
+
+The researcher decides when the figure is good enough and when to stop.
+Your job is to make your case, not to win it.
+
+- If you notice you are pressing the same point a second time, say so out
+  loud, once: name the disagreement, say it's their call, and let it go.
+- Registering a disagreement never licenses holding back effort. If they
+  want to go ahead their way, help them do it properly, and leave your
+  reservation noted once.
+- Take stopping cues at face value. "I'm done," "I'm out of time," "I'm
+  tired," or "that's settled" ends the push on that point. Don't reopen it
+  unless they do.
 
 ## You are a thought partner, not a form
 
@@ -2119,8 +2134,16 @@ not yours. If the researcher asks you to draw or move something, tell
 them plainly that's Drew's job, and they can just address him directly.
 His turns in this shared history appear as a raw JSON object — that's
 just his internal format for describing diagram edits, not something
-he's showing the researcher. Read the "message" field for what he
-actually said and ignore the rest.`;
+he's showing the researcher. Read the "message" field for what he said
+to the researcher. The "actions" show what he drew, including any words
+he chose himself: arrow labels, box names, arrow types.
+
+Before you criticise anything on the figure, check who introduced it. If
+a word first appears in Drew's actions and not in anything the
+researcher wrote, it is Drew's choice. Say so — "Drew labelled that
+arrow 'affects'" — make your case against it, and suggest the researcher
+ask Drew for a better one. Don't treat it as the researcher's claim. You
+and Drew can disagree; that's fine.`;
 
 var DREW_SYSTEM_BASE = `You are Drew, the diagram-building partner sharing this conversation with
 Thea. Where Thea decides what a process model should claim, you decide how
@@ -2318,37 +2341,10 @@ var conv = [];       // shared conversation history (plain user/assistant turns)
 var chatLog = [];    // shared display log
 var isSending = false;
 
-// This is a published artifact, not the chat's own preview -- it can't fetch
-// api.anthropic.com directly. Instead it asks Claude through a capability
-// the viewer grants when they open the page. That capability has no
-// "system" role, so Thea's and Drew's instructions are folded into a
-// leading user turn on every call instead (see callClaude). Requested at
-// load, and requested again at send time while it is still missing.
-// use() resolves null, not an error, when this view cannot use it (not
-// declared at publish, not offered to this viewer, or no viewer answered),
-// and the reasons cannot be told apart from inside the page.
-var sampleFn = null;
-async function requestSample(){
-  if(sampleFn) return sampleFn;
-  try{
-    if(typeof window.claude === 'undefined') return null;
-    sampleFn = (await window.claude.use('sample')) || null;
-  } catch(e){
-    sampleFn = null;
-  }
-  return sampleFn;
-}
-requestSample();
-
-// Shown when there is no Claude access at all. Never says "reload": a
-// reload loses the intake and the conversation (TD-03). The reader's last
-// message stays in the conversation, so it goes out with the next send.
-function noSampleCopy(){
-  if(typeof window.claude === 'undefined'){
-    return "Open this link in a browser where you're signed in to claude.ai.";
-  }
-  return "This page can't reach Claude right now. Check that you're signed in to claude.ai and allowed Claude access when asked, then press Thea thinks or Drew draws again; your last message is kept. If it keeps happening, tell whoever shared this link.";
-}
+// Thea and Drew reach Claude through Amazon Bedrock, via an endpoint that IT
+// runs (see the IT block above callClaude). The page holds no credentials and
+// sends one request per message. Builds up to the git tag last-artifact-build
+// reached Claude through the claude.ai artifact runtime instead (TD-24).
 
 function pushLog(entry){ chatLog.push(entry); renderChatFeed(); }
 
@@ -2366,19 +2362,19 @@ function setSending(persona, v){
   renderChatFeed();
 }
 
-// Keeps one call's turns under the capability's size limit as a session
-// grows, by trimming from the front (oldest first). The instructions turn
-// itself is rebuilt fresh each call rather than stored here, so it's never
-// at risk of being the thing that gets trimmed.
+// Keeps one request's turns under the size limit as a session grows, by
+// trimming from the front (oldest first). Thea's and Drew's instructions go
+// in the request's system field, rebuilt fresh each call, so they are never
+// the thing that gets trimmed.
 function recentConv(){
   var MAX_TURNS = 24;
   return conv.length > MAX_TURNS ? conv.slice(conv.length - MAX_TURNS) : conv;
 }
 
-// The sample capability's errors carry {code, message} and nothing else --
-// no retryAfter, no reset timestamp -- so there is no value to count down
-// from. Rather than invent one, which is exactly what a flat "wait a minute"
-// did, a duration is shown ONLY when the service's own message states one.
+// A rate-limit error is shown with a wait ONLY when the service's own
+// message states one. Nothing here counts down or guesses a duration; a flat
+// "wait a minute" once put a number in front of the reader that nobody had
+// measured.
 //
 // The pattern deliberately requires BOTH a retry cue (retry / try again /
 // wait) and an in/after/within lead-in, within the same sentence. Looser
@@ -2408,59 +2404,156 @@ function rateLimitCopy(err){
   if(msg && /\s/.test(msg) && msg.toLowerCase().indexOf('rate_limited') === -1){
     return 'Too many requests right now — ' + msg.replace(/\.+$/, '') + '.';
   }
-  return 'Too many requests right now — wait a moment and try again. Your message was not sent.';
+  return 'Too many requests right now — wait a moment, then press Thea thinks or Drew draws again; your last message is kept.';
 }
 
-// Maps the capability's stable error codes to what a researcher should be
-// told. Returning null means "say nothing new" (a cancelled call).
-function sampleErrorCopy(err){
-  switch(err && err.code){
-    case 'not_granted':
-      return "Claude access wasn't allowed for this artifact -- reload the page and accept the prompt to talk to Thea and Drew.";
-    case 'rate_limited':
-      return rateLimitCopy(err);
-    case 'refused':
-      return "Claude declined to respond to that -- try rephrasing.";
-    case 'empty_completion':
-      return "Claude didn't return anything -- try again, maybe with a shorter message.";
-    case 'prompt_too_large':
-      return 'This message is too long for one turn -- try trimming it.';
-    case 'session_expired':
-      return 'Your session expired -- reload the page.';
-    case 'sampling_disabled':
-    case 'not_declared':
-    case 'capability_disabled':
-    case 'capability_removed':
-      return "Claude isn't available in this view.";
-    case 'cancelled':
-      return null;
-    default:
-      // An error the page has no wording for, such as the one seen while
-      // the viewer is still granting Claude access. Sending again works.
-      return ((err && err.message) ? err.message.replace(/\.+$/, '') : 'something went wrong') +
-        '. Press Thea thinks or Drew draws again; your last message is kept.';
+/* ============================================================
+   IT: replace the two PLACEHOLDER values below, nothing else.
+   ============================================================ */
+var BEDROCK_ENDPOINT = 'PLACEHOLDER_BEDROCK_ENDPOINT_URL';
+var BEDROCK_MODEL_ID = 'PLACEHOLDER_BEDROCK_MODEL_ID';   // Claude Sonnet 4.6
+/* ======================= end of IT block ======================= */
+
+var TEMPERATURE = 0;
+var THEA_MAX_TOKENS = 2000;    // starting values
+var DREW_MAX_TOKENS = 4000;
+var THEA_TIMEOUT_MS = 60000;   // starting values
+var DREW_TIMEOUT_MS = 120000;
+
+function bedrockConnected(){
+  return BEDROCK_ENDPOINT.indexOf('PLACEHOLDER_') !== 0 &&
+         BEDROCK_MODEL_ID.indexOf('PLACEHOLDER_') !== 0;
+}
+
+// The API wants turns that start with a user turn and alternate. A failed
+// send leaves the reader's message in the conversation, so two user turns in
+// a row can happen: those are joined with a blank line. Copies, so conv is
+// never changed here.
+function apiMessages(turns){
+  var out = [];
+  turns.forEach(function(t){
+    if(!out.length && t.role !== 'user') return;   // nothing before the first user turn
+    var last = out[out.length - 1];
+    if(last && last.role === t.role) last.content += '\n\n' + t.content;
+    else out.push({ role: t.role, content: t.content });
+  });
+  return out;
+}
+
+// The one place the request is built, in Anthropic Messages format, so a
+// change of format is a change here only. If IT's endpoint passes this
+// straight to Bedrock's InvokeModel, the model ID belongs in the URL and the
+// body needs anthropic_version: 'bedrock-2023-05-31' in place of model.
+function buildClaudeRequest(persona){
+  return {
+    model: BEDROCK_MODEL_ID,
+    system: persona==='thea' ? theaSystemPrompt() : drewSystemPrompt(),
+    messages: apiMessages(recentConv()),
+    temperature: TEMPERATURE,
+    max_tokens: persona==='thea' ? THEA_MAX_TOKENS : DREW_MAX_TOKENS
+  };
+}
+
+function claudeError(code, extra){
+  var e = new Error(code);
+  e.code = code;
+  if(extra) Object.keys(extra).forEach(function(k){ e[k] = extra[k]; });
+  return e;
+}
+
+// The service's own error sentence, from an Anthropic-style
+// {error:{message}}, a Bedrock-style {message}, or plain text.
+function serviceMessage(raw){
+  var text = String(raw || '').trim();
+  try{
+    var j = JSON.parse(text);
+    if(j && j.error && typeof j.error.message === 'string') return j.error.message.trim();
+    if(j && typeof j.message === 'string') return j.message.trim();
+    if(j && typeof j.Message === 'string') return j.Message.trim();
+  } catch(e){}
+  return text.length > 300 ? text.slice(0, 300) + '…' : text;
+}
+
+// One fetch, with a timeout that also covers waiting for the response body.
+// No retry: one send is one request.
+async function claudeFetch(persona, url, init){
+  var ms = persona==='thea' ? THEA_TIMEOUT_MS : DREW_TIMEOUT_MS;
+  var ctl = new AbortController();
+  var timer = setTimeout(function(){ ctl.abort(); }, ms);
+  try{
+    var res, raw;
+    try{
+      res = await fetch(url, Object.assign({}, init, { signal: ctl.signal }));
+      raw = await res.text();
+    } catch(e){
+      throw claudeError(ctl.signal.aborted ? 'timeout' : 'network');
+    }
+    if(!res.ok) throw claudeError('http', { status: res.status, message: serviceMessage(raw) });
+    try{ return JSON.parse(raw); }
+    catch(e){ throw claudeError('bad_response'); }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-var PERMANENT_ERROR_CODES = ['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'];
+// The reply's text. A reply cut off at max_tokens is never used: a truncated
+// Drew action list would break parseDrewResponse.
+function replyText(body){
+  if(!body || typeof body !== 'object' || !Array.isArray(body.content)) throw claudeError('bad_response');
+  if(body.stop_reason === 'max_tokens') throw claudeError('truncated');
+  if(body.stop_reason === 'refusal') throw claudeError('refused');
+  var text = body.content
+    .filter(function(b){ return b && b.type === 'text' && typeof b.text === 'string'; })
+    .map(function(b){ return b.text; }).join('').trim();
+  if(!text) throw claudeError('empty');
+  return text;
+}
+
+// What a researcher is told for each failure. Never "reload": that loses the
+// intake and the conversation (TD-03). The failed message stays in conv and
+// goes out with the next send.
+var RETRY_LINE = 'Press Thea thinks or Drew draws again; your last message is kept.';
+function claudeErrorCopy(err){
+  var code = err && err.code;
+  switch(code){
+    case 'not_connected':
+      return "This build isn't connected to Claude yet, so Thea and Drew can't reply. Your last message is kept.";
+    case 'network':
+      return "Couldn't reach Claude. Check your internet connection, then press Thea thinks or Drew draws again; your last message is kept.";
+    case 'timeout':
+      return 'Claude took too long to answer. ' + RETRY_LINE;
+    case 'truncated':
+      return "Claude's reply ran long and was cut off. " + RETRY_LINE;
+    case 'empty':
+      return "Claude didn't return anything -- try again, maybe with a shorter message.";
+    case 'refused':
+      return "Claude declined to respond to that -- try rephrasing.";
+    case 'bad_response':
+      return "Claude's reply couldn't be read. " + RETRY_LINE;
+    case 'http':
+      if(err.status === 429) return rateLimitCopy(err);
+      if(err.status === 401 || err.status === 403) return "This page isn't allowed to use Claude right now. " + RETRY_LINE + ' If it keeps happening, tell whoever shared this link.';
+      if(err.status === 400 || err.status === 413) return "Claude couldn't accept that message, which may be too long. Try trimming it.";
+      if(err.status >= 500 && err.status <= 599) return 'Claude is temporarily unavailable. ' + RETRY_LINE;
+      break;
+  }
+  var msg = (err && err.message && err.message !== code) ? String(err.message).replace(/\.+$/, '') : 'something went wrong';
+  return msg + '. ' + RETRY_LINE;
+}
 
 async function callClaude(persona, userText){
   conv.push({ role:'user', content:userText });
   pushLog({ type:'user', text:userText });
   setSending(persona, true);
 
-  if(!sampleFn) await requestSample();
-  if(!sampleFn){
-    pushLog({ type:'error', text: noSampleCopy() });
-    setSending(persona, false);
-    return;
-  }
-
   try{
-    var instructions = persona==='thea' ? theaSystemPrompt() : drewSystemPrompt();
-    var turns = [{ role:'user', content: instructions }].concat(recentConv());
-    var result = await sampleFn(turns, { modelTier:'default', cache:false });
-    var text = ((result && result.text) || '').trim();
+    if(!bedrockConnected()) throw claudeError('not_connected');   // no request at all
+    var body = await claudeFetch(persona, BEDROCK_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildClaudeRequest(persona))
+    });
+    var text = replyText(body);
 
     conv.push({ role:'assistant', content:text });
 
@@ -2481,9 +2574,7 @@ async function callClaude(persona, userText){
       }
     }
   } catch(err){
-    var copy = sampleErrorCopy(err);
-    if(copy) pushLog({ type:'error', text:'Trouble reaching Claude: ' + copy });
-    if(err && PERMANENT_ERROR_CODES.indexOf(err.code) !== -1) sampleFn = null;
+    pushLog({ type:'error', text:'Trouble reaching Claude: ' + claudeErrorCopy(err) });
   } finally {
     setSending(persona, false);
   }
