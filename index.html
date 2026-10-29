@@ -327,13 +327,9 @@
       <h3>Where your words go</h3>
       <ul>
         <li>Whatever you send Thea or Drew is passed to Claude, Anthropic's AI, to generate a reply — that's the whole mechanism behind both personas.</li>
-        <li>Once your message reaches Anthropic's side, it's covered by Anthropic's own privacy policy and terms, not this page.</li>
+        <li>Once your message reaches Claude, it's handled under university agreements for AI services and isn't used to train models.</li>
         <li>Before pasting in an excerpt, strip out anything that could identify a participant, plus anything confidential or proprietary.</li>
       </ul>
-
-      <h3>What Anthropic does with it</h3>
-      <p>Anthropic may use the content you send Claude to improve their models — their <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">privacy policy</a> has the full picture. This tool itself doesn't collect or train on anything you write here; past the point it leaves your browser, Anthropic's data practices are what govern it.</p>
-      <p>To opt out of sharing your inputs and outputs with Anthropic, please open Settings &rarr; Privacy in Claude.ai or the Claude mobile app. Under &ldquo;Help Improve our AI models,&rdquo; toggle the setting off. This stops new chats and coding sessions from being used for future model training; data already used in training is not removed. <a href="https://privacy.claude.com/en/articles/12109829-how-do-i-change-my-model-improvement-privacy-settings" target="_blank" rel="noopener">Anthropic&rsquo;s instructions</a></p>
 
       <h3>What the AI gets wrong</h3>
       <ul>
@@ -2410,8 +2406,8 @@ function rateLimitCopy(err){
 /* ============================================================
    IT: replace the two PLACEHOLDER values below, nothing else.
    ============================================================ */
-var BEDROCK_ENDPOINT = 'PLACEHOLDER_BEDROCK_ENDPOINT_URL';
-var BEDROCK_MODEL_ID = 'PLACEHOLDER_BEDROCK_MODEL_ID';   // Claude Sonnet 4.6
+var BEDROCK_ENDPOINT = '/api/claude/figure-agent';
+var BEDROCK_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';   // Claude Sonnet 4.6
 /* ======================= end of IT block ======================= */
 
 var TEMPERATURE = 0;
