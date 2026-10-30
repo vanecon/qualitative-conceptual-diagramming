@@ -17,7 +17,7 @@ The analytical, thinking-partner work is deliberately assigned to the female-cod
 
 The tool is a single page (`index.html`). Thea and Drew reach Claude through the website's server, which holds the API key and sets the model (Claude Sonnet 4.6), temperature (0), and reply-length limits. The copy in this repository is the same code as the live site and works on its own: download `index.html` and open it in a browser (an internet connection is needed). For PowerPoint export and reading uploaded files, the page loads open-source libraries (PptxGenJS, JSZip, PDF.js) from public CDNs.
 
-Both tools share a daily usage limit. Once it is reached, Thea and Drew show a message asking you to try again tomorrow; the limit resets at midnight US Eastern time.
+The Figure Creation Agent shares a daily usage limit with its companion tool, Casting Call (https://gendairesearch.com/casting-call/). Once the limit is reached, Thea and Drew show a message asking you to try again tomorrow; the limit resets at midnight US Eastern time.
 
 ## Data
 
