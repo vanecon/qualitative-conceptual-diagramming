@@ -2413,7 +2413,7 @@ function rateLimitCopy(err){
 /* ============================================================
    IT: replace the two PLACEHOLDER values below, nothing else.
    ============================================================ */
-var BEDROCK_ENDPOINT = '/api/claude/figure-agent';
+var BEDROCK_ENDPOINT = 'https://gendairesearch.com/api/claude/figure-agent';
 var BEDROCK_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';   // Claude Sonnet 4.6
 /* ======================= end of IT block ======================= */
 
@@ -2537,6 +2537,8 @@ function claudeErrorCopy(err){
       if(err.status === 429) return rateLimitCopy(err);
       if(err.status === 401 || err.status === 403) return "This page isn't allowed to use Claude right now. " + RETRY_LINE + ' If it keeps happening, tell whoever shared this link.';
       if(err.status === 400 || err.status === 413) return "Claude couldn't accept that message, which may be too long. Try trimming it.";
+      // The site's daily spending cap: the server's own sentence says to come back tomorrow.
+      if(err.status === 503 && /today's usage limit/i.test(err.message || '')) return err.message + ' Your last message is kept.';
       if(err.status >= 500 && err.status <= 599) return 'Claude is temporarily unavailable. ' + RETRY_LINE;
       break;
   }
@@ -2577,7 +2579,9 @@ async function callClaude(persona, userText){
       }
     }
   } catch(err){
-    pushLog({ type:'error', text:'Trouble reaching Claude: ' + claudeErrorCopy(err) });
+    var copy = claudeErrorCopy(err);
+    // The daily-limit sentence stands on its own (Claude was reached; the site's cap said no).
+    pushLog({ type:'error', text:(/today's usage limit/i.test(copy) ? '' : 'Trouble reaching Claude: ') + copy });
   } finally {
     setSending(persona, false);
   }
